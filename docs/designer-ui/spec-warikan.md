@@ -2,15 +2,15 @@
 from: designer-ui
 to: designer-review
 type: deliverable
-iteration: 1
+iteration: 2
 status: ready
 open_issues: none
 workspace: /Users/kuromametarou/WorkSpace/product/my-app
-inputs: docs/pm-requirements/requirements.md
+inputs: docs/pm-requirements/requirements.md (v1.1), docs/designer-review/review-warikan.md
 outputs: docs/designer-ui/spec-warikan.md, docs/designer-ui/mockups/flow.mermaid, docs/designer-ui/mockups/warikan-main.html
 ---
 
-# デザイン仕様: 割り勘計算機(v1)
+# デザイン仕様: 割り勘計算機(v2)
 
 ## 設計方針
 
@@ -31,10 +31,11 @@ outputs: docs/designer-ui/spec-warikan.md, docs/designer-ui/mockups/flow.mermaid
   3. 設定グループ「端数の丸め」: 丸め単位(1/10/100/500/1000円の5択・横並びセグメント、初期値100円)+ 丸め方向(切り上げ/切り捨ての2択セグメント、初期値切り上げ)(REQ-002-1)
   4. 結果カード: 「1人あたり」金額(画面内最大の文字)、集金合計、差額表示(REQ-003)
 - 状態一覧:
-  - **初期**(未入力): 結果カードに案内文「金額と人数を入れると結果が出ます」。エラー色は使わない(まだ誤りではないため)
-  - **結果表示**(有効入力): 1人あたり・集金合計・差額の3行。差額は 余り=緑「◯円余る」/ 不足=赤「◯円足りない(幹事負担)」/ 0=中立「ぴったり」(REQ-003-2)
-  - **エラー**(不正入力): 結果カードを警告表示に置換し、原因別の文言(下記)。古い結果は表示しない(REQ-004-2)
+  - **初期/未入力**(金額・人数の**いずれかが空**): 結果カードに案内文「金額と人数を入れると結果が出ます」。エラー色は使わない(REQ-004-2 v1.1: 入力途中はエラー扱いしない)。片方だけ入力済みでも同じ扱い
+  - **結果表示**(両方入力済みかつ有効): 1人あたり・集金合計・差額の3行。差額は 余り=緑「◯円余る」/ 不足=赤「◯円足りない(幹事負担)」/ 0=中立「ぴったり」(REQ-003-2)
+  - **エラー**(値が入っているが不正): 結果カードを警告表示に置換し、原因別の文言(下記)。空のフィールドはエラー対象にせず、値のあるフィールドのみ検証する(REQ-004-1 v1.1)。古い結果は表示しない(REQ-004-3)
   - ローディング: なし(全計算がローカルで同期実行のため。デザイナー判断)
+  - 状態判定の優先順位: いずれか空→初期/未入力 > 値が不正→エラー > 有効→結果表示
 - インタラクション:
   - 金額・人数の入力/変更 → 即時再計算(input イベント相当)
   - 丸め単位・方向の選択変更 → 即時再計算
@@ -45,6 +46,7 @@ outputs: docs/designer-ui/spec-warikan.md, docs/designer-ui/mockups/flow.mermaid
   - 結果: 「1人あたり」「集金合計」/ 差額: 「◯円余る」「◯円足りない(幹事負担)」「ぴったり」
   - エラー: 金額不正「合計金額は1〜9,999,999の整数で入力してください」/ 人数不正「人数は2〜99の整数で入力してください」(両方不正なら両方表示)
 - レスポンシブ方針: 375pxを基準に最大幅480pxで中央寄せ。横スクロール禁止(REQ-005-2)。フォント・余白は拡大せず同一レイアウトを維持
+- タッチターゲット: すべての操作要素(入力フィールド・セグメントボタン)は高さ44px以上とする(should-1対応、Apple HIG/WCAG 2.5.8相当)
 
 ## デザイナー判断とした事項
 
@@ -54,10 +56,18 @@ outputs: docs/designer-ui/spec-warikan.md, docs/designer-ui/mockups/flow.mermaid
 
 ## 実装への申し送り
 
-- セグメント選択は `<button>` 群でも `<input type="radio">` でも可。キーボード・タップ両対応であること
+- セグメント選択は `<button>` 群でも `<input type="radio">` でも可。キーボード・タップ両対応であること。**選択状態はプログラム的に判別可能にすること**(radio の checked、または button の aria-pressed。色のみで選択を表現しない)(should-2対応、WCAG 1.4.1/4.1.2)
 - 丸め計算の仕様(床/天井関数)は要件 REQ-002 が正。モックの数値例は要件の例と一致させてある
 - 外部フォント・アイコン不使用(REQ-005-3)。システムフォントのみ
 
+## 指摘への応答(designer-review iteration 1)
+
+- [must-1] 部分入力時の状態が未定義 → **採用**。要件側の曖昧さだったため pm-requirements に質問し(questions.md Q1)、要件v1.1の改訂を受けて状態一覧に「いずれかが空→初期/未入力」と判定優先順位を明記
+- [should-1] タッチターゲット最小サイズ → **採用**。全操作要素44px以上をレスポンシブ方針に追加。モックも修正
+- [should-2] 選択状態のセマンティクス → **採用**。実装への申し送りに checked / aria-pressed 要求を追加
+- [nit-1] プレースホルダが例値と紛らわしい → **採用**。「例: 10000」形式に変更(モック反映)
+
 ## 改訂履歴
 
+- v2 (2026-07-17): designer-review iteration 1 の全指摘に対応(上記応答表)。要件v1.1(REQ-004改訂)を反映
 - v1 (2026-07-17): 初版
