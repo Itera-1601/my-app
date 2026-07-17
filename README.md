@@ -2,3 +2,4 @@
 
 ## 使い方
 このリポジトリはClaude自動実装ループの動作確認用に使用します。
+<!-- autonomous-loop-check-1 -->
