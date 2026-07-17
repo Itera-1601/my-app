@@ -23,7 +23,7 @@ jobs:
       - name: Claude Review
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             engineer-review ロールとしてこのPRをレビューしてください。
 
@@ -118,7 +118,7 @@ jobs:
       - name: Fix per review
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             engineer-implement ロールとして、このPRの最新レビューコメント
             (VERDICT: REQUEST_CHANGES を含むもの)の指摘を修正してください。
