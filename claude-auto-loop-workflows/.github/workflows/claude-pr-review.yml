@@ -1,0 +1,131 @@
+# PRが開かれたら engineer-review 相当のAIレビューを自動実行するワークフロー
+# supervised: レビューコメントのみ(マージはあなたのapprove後に手動)
+# autonomous: approve判定で自動マージ、要修正なら自動で修正ループ(上限3回)
+# モードはリポジトリ変数 PROJECT_MODE で切替(未設定 = supervised)
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            engineer-review ロールとしてこのPRをレビューしてください。
+
+            レビューの進め方:
+            1. PR本文にリンクされたissue(Closes #N)を読み、
+               「ゴール(完了条件)」「設計・実装方針」「レビュー観点」を把握する
+            2. 差分がissueのゴールを全て満たしているか検証する
+            3. issueの「レビュー観点」の各項目を明示的にチェックし、結果を報告する
+            4. issueのスコープを超えた変更が混入していないか確認する(混入は指摘対象)
+            5. バグ・エッジケース・セキュリティ・既存規約との不整合を指摘する
+
+            出力形式(PRコメントとして投稿):
+            - レビュー観点チェック結果(観点ごとに ✅/❌ と根拠)
+            - 指摘事項(重要度順、最大5件、些末なスタイル指摘は省く)
+            - 賞賛は書かない。事実と根拠のみ。
+            - **コメントの最終行は必ず次のどちらか一方だけにする(自動処理が読むため厳守):**
+              `VERDICT: APPROVE` または `VERDICT: REQUEST_CHANGES`
+
+            批評と判定のみを行い、コードの修正はしないこと。
+          claude_args: |
+            --max-turns 30
+
+  # ── autonomous モード専用: 判定に応じて自動マージ or 自動修正 ──
+  autonomous-gate:
+    needs: review
+    if: vars.PROJECT_MODE == 'autonomous'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      action: ${{ steps.verdict.outputs.action }}
+    steps:
+      - name: Parse verdict and rework count
+        id: verdict
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          comments=$(gh api "repos/$REPO/issues/$PR/comments" --jq '[.[].body]')
+          verdict=$(echo "$comments" | jq -r '[.[] | select(contains("VERDICT:"))] | last // ""' | grep -o "VERDICT: [A-Z_]*" | tail -1 || echo "")
+          rework=$(echo "$comments" | jq '[.[] | select(contains("VERDICT: REQUEST_CHANGES"))] | length')
+          echo "verdict=$verdict rework_count=$rework"
+
+          if [ "$verdict" = "VERDICT: APPROVE" ]; then
+            echo "action=merge" >> "$GITHUB_OUTPUT"
+          elif [ "$rework" -ge 3 ]; then
+            echo "action=escalate" >> "$GITHUB_OUTPUT"
+          elif [ "$verdict" = "VERDICT: REQUEST_CHANGES" ]; then
+            echo "action=rework" >> "$GITHUB_OUTPUT"
+          else
+            echo "action=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Auto-merge (approve)
+        if: steps.verdict.outputs.action == 'merge'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --squash --auto \
+            --repo ${{ github.repository }}
+          # マージ完了で claude-implement-next.yml が発火し、次タスクが自動開始される
+
+      - name: Escalate to human (rework limit)
+        if: steps.verdict.outputs.action == 'escalate'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-human" \
+            --repo ${{ github.repository }}
+          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body \
+            "🚨 escalate-to-human: レビュー差し戻しが3回に達しました。タスクの切り方または設計に問題がある可能性があります。自動ループを停止したので人間の判断をお願いします。"
+
+  # 要修正(上限未満)の場合: Claudeが指摘を修正してpush → synchronizeで再レビューが走る
+  autonomous-rework:
+    needs: autonomous-gate
+    if: needs.autonomous-gate.outputs.action == 'rework'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Fix per review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            engineer-implement ロールとして、このPRの最新レビューコメント
+            (VERDICT: REQUEST_CHANGES を含むもの)の指摘を修正してください。
+
+            制約:
+            - 指摘された箇所のみ修正する。指摘範囲外を「ついでに」変えない
+            - 修正をこのブランチ(${{ github.event.pull_request.head.ref }})にpushする
+            - 各指摘にどう対応したかをPRコメントで報告する
+          claude_args: |
+            --max-turns 40

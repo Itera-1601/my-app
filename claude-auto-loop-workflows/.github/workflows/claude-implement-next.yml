@@ -1,0 +1,101 @@
+# マージをフックに次のタスクを自動開始するワークフロー
+# ループ: PRマージ → Ready最優先issueを1件選定 → Claudeが実装しPRを開く
+# 初回のキックオフは Actions タブから手動実行(workflow_dispatch)する
+name: Claude Implement Next Task
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch: # 初回キックオフ・手動再開用
+
+jobs:
+  pick-and-implement:
+    # マージされた場合のみ(closeだけでマージされていないPRでは動かない)
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 次タスク選定(pm-prioritization の着手順ルールを機械的に実行) ──
+      # ルール: P0 → P1 → P2 の順、同一優先度内は issue 番号の小さい順。
+      # "Blocked by: #N" の全ブロッカーが closed のものだけを Ready とみなす。
+      # in-progress ラベルつき(実装中)はスキップ = WIP上限1の保証。
+      - name: Pick next ready issue
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          picked=""
+
+          # 実装中のissueが既にあれば何もしない(WIP=1)
+          in_progress=$(gh issue list --label "in-progress" --state open --json number --jq 'length')
+          if [ "$in_progress" -gt 0 ]; then
+            echo "An issue is already in progress. Skipping."
+            echo "issue=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          for prio in P0 P1 P2; do
+            numbers=$(gh issue list --label "$prio" --state open \
+              --json number --jq 'sort_by(.number) | .[].number')
+            for n in $numbers; do
+              body=$(gh issue view "$n" --json body --jq .body)
+              # "Blocked by:" 行から #番号 を抽出
+              blockers=$(echo "$body" | grep -i "Blocked by" | grep -o "#[0-9]*" | tr -d '#' || true)
+              ready=true
+              for b in $blockers; do
+                state=$(gh issue view "$b" --json state --jq .state)
+                if [ "$state" != "CLOSED" ]; then
+                  ready=false
+                  break
+                fi
+              done
+              if [ "$ready" = true ]; then
+                picked=$n
+                break 2
+              fi
+            done
+          done
+
+          if [ -z "$picked" ]; then
+            echo "No ready issue found. All done or all blocked."
+            echo "issue=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Picked issue #$picked"
+          gh issue edit "$picked" --add-label "in-progress"
+          gh issue comment "$picked" --body "🤖 自動選定: このissueが Ready 列の最優先タスクとして選ばれました。実装を開始します。"
+          echo "issue=$picked" >> "$GITHUB_OUTPUT"
+
+      # ── 選定したissueをClaudeが実装 ──
+      - name: Implement with Claude
+        if: steps.pick.outputs.issue != ''
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            engineer-implement ロールとして、issue #${{ steps.pick.outputs.issue }} を実装してください。
+
+            手順:
+            1. `gh issue view ${{ steps.pick.outputs.issue }}` でissue本文を読む
+            2. issueの「設計・実装方針」に厳密に従う。新しい設計判断をしない。
+               設計に不足があれば実装せず、issueにコメントで質問を残して終了する
+            3. `feature/issue-${{ steps.pick.outputs.issue }}` ブランチを作成して実装する
+            4. issueの「ゴール(完了条件)」を全て満たすことを確認し、テストを追加・実行する
+            5. PR本文の末尾に `Closes #${{ steps.pick.outputs.issue }}` を入れてPRを作成する
+               (マージ時にissueが自動closeされ、次タスクのトリガーになる)
+            6. PR本文にissueの「レビュー観点」を転記し、レビュアーが確認しやすくする
+
+            制約:
+            - このissueのスコープを超える変更をしない
+            - 依存タスク(Blocked by)のコードに手を入れない
+          claude_args: |
+            --max-turns 50
