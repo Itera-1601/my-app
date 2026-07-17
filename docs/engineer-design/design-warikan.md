@@ -38,7 +38,7 @@ src/
 └── warikan.js      # 純粋ロジック(DOM非依存)
 test/
 └── warikan.test.js # node:test による単体テスト
-package.json        # {"type": "module"} のみ。dependencies なし
+package.json        # {"type": "module", "private": true} のみ。dependencies なし
 ```
 
 ```js
@@ -75,7 +75,7 @@ export function calc(total, people, unit, direction)
 
 1. **T1 (P0)**: warikan.js(validate/calc)+ test/warikan.test.js + package.json。完了条件は要件の数値例がテストで通ること
 2. **T2 (P1, Blocked by T1)**: index.html + app.js(UI仕様v2準拠)。完了条件はUI仕様の3状態+文言+44pxターゲット
-3. **T3 (P2, Blocked by T2)**: `.github/workflows/deploy-pages.yml`(ADR-0004)。完了条件はデプロイ成功
+3. **T3 (P2, Blocked by T2)**: `.github/workflows/deploy-pages.yml`(ADR-0004)。完了条件はデプロイ成功。トリガーは `push`(paths: `src/**` と当該ワークフロー自身)+ `workflow_dispatch` の併用とし、ワークフロー追加コミット自体で初回デプロイが発火するようにする(should-1対応)。**前提**: Pages の有効化(Source: GitHub Actions)は無人ループの権限外のため、T3起票前に orchestrator がローカルの `gh api`(管理者権限)で実施しておく(should-2対応)
 
 注意点:
 - 外部リソース参照(CDN・フォント・アイコン)を1つも入れないこと(REQ-005-3)
@@ -86,6 +86,13 @@ export function calc(total, people, unit, direction)
 
 なし
 
+## 指摘への応答(engineer-review iteration 1)
+
+- [should-1] 初回デプロイのトリガー → **採用**。T3にトリガー仕様(paths+workflow_dispatch)を明記
+- [should-2] Pages有効化の責務 → **採用**。T3の前提として orchestrator のローカル gh api 実施を明記
+- [nit-1] package.json の private → **採用**
+
 ## 改訂履歴
 
+- v1.1 (2026-07-17): engineer-review iteration 1 の承認(must 0)を受け全ADRを accepted に更新。should/nit 3件を反映(上記応答表)
 - v1 (2026-07-17): 初版。CP2/CP3 は autonomous モードのため事後ログ化(docs/orchestrator/cp-log.md)
