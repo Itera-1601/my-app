@@ -100,3 +100,4 @@ jobs:
             - 依存タスク(Blocked by)のコードに手を入れない
           claude_args: |
             --max-turns 50
+            --allowedTools "Bash,Edit,Write,Read,Glob,Grep"
