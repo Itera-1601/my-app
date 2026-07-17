@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>モック: 割り勘計算機(3状態)</title>
+<style>
+  /* ワイヤーフレーム忠実度のモック。実装の正は spec-warikan.md */
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; background: #e5e5e5; margin: 0; padding: 16px; }
+  .mock-label { max-width: 480px; margin: 24px auto 8px; font-size: 13px; color: #666; }
+  .screen { max-width: 480px; margin: 0 auto; background: #fff; border: 1px solid #ccc; border-radius: 12px; padding: 20px 16px; }
+  h1 { font-size: 16px; margin: 0 0 16px; color: #333; }
+  .group { margin-bottom: 16px; }
+  .group-label { font-size: 12px; color: #666; margin-bottom: 6px; }
+  .fields { display: flex; gap: 8px; }
+  .field { flex: 1; }
+  .field label { display: block; font-size: 12px; color: #444; margin-bottom: 4px; }
+  .field input { width: 100%; box-sizing: border-box; font-size: 18px; padding: 10px; border: 1px solid #bbb; border-radius: 8px; }
+  .seg { display: flex; gap: 4px; }
+  .seg button { flex: 1; padding: 8px 0; font-size: 13px; border: 1px solid #bbb; background: #f4f4f4; border-radius: 8px; }
+  .seg button.on { background: #333; color: #fff; border-color: #333; }
+  .result { border: 2px solid #333; border-radius: 12px; padding: 16px; text-align: center; }
+  .result .per-label { font-size: 12px; color: #666; }
+  .result .per-amount { font-size: 40px; font-weight: 700; margin: 4px 0 12px; }
+  .result .sub { font-size: 14px; color: #444; display: flex; justify-content: space-between; padding: 4px 8px; }
+  .diff-plus { color: #1a7f37; }
+  .diff-minus { color: #c1121f; }
+  .result.empty { border-style: dashed; border-color: #aaa; color: #888; font-size: 14px; padding: 28px 16px; }
+  .result.error { border-color: #c1121f; background: #fff5f5; color: #c1121f; font-size: 14px; text-align: left; }
+  .result.error p { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<p class="mock-label">状態1: 初期(未入力)</p>
+<div class="screen">
+  <h1>割り勘計算機</h1>
+  <div class="group">
+    <div class="fields">
+      <div class="field"><label>合計金額(円)</label><input placeholder="10000"></div>
+      <div class="field"><label>人数(人)</label><input placeholder="3"></div>
+    </div>
+  </div>
+  <div class="group">
+    <div class="group-label">端数の丸め</div>
+    <div class="seg" style="margin-bottom:4px">
+      <button>1円</button><button>10円</button><button class="on">100円</button><button>500円</button><button>1000円</button>
+    </div>
+    <div class="seg"><button class="on">切り上げ</button><button>切り捨て</button></div>
+  </div>
+  <div class="result empty">金額と人数を入れると結果が出ます</div>
+</div>
+
+<p class="mock-label">状態2: 結果表示(例: 10,000円・3人・100円・切り上げ)</p>
+<div class="screen">
+  <h1>割り勘計算機</h1>
+  <div class="group">
+    <div class="fields">
+      <div class="field"><label>合計金額(円)</label><input value="10000"></div>
+      <div class="field"><label>人数(人)</label><input value="3"></div>
+    </div>
+  </div>
+  <div class="group">
+    <div class="group-label">端数の丸め</div>
+    <div class="seg" style="margin-bottom:4px">
+      <button>1円</button><button>10円</button><button class="on">100円</button><button>500円</button><button>1000円</button>
+    </div>
+    <div class="seg"><button class="on">切り上げ</button><button>切り捨て</button></div>
+  </div>
+  <div class="result">
+    <div class="per-label">1人あたり</div>
+    <div class="per-amount">3,400円</div>
+    <div class="sub"><span>集金合計</span><span>10,200円</span></div>
+    <div class="sub"><span>差額</span><span class="diff-plus">200円余る</span></div>
+  </div>
+</div>
+
+<p class="mock-label">状態3: エラー(例: 人数が0)</p>
+<div class="screen">
+  <h1>割り勘計算機</h1>
+  <div class="group">
+    <div class="fields">
+      <div class="field"><label>合計金額(円)</label><input value="10000"></div>
+      <div class="field"><label>人数(人)</label><input value="0"></div>
+    </div>
+  </div>
+  <div class="group">
+    <div class="group-label">端数の丸め</div>
+    <div class="seg" style="margin-bottom:4px">
+      <button>1円</button><button>10円</button><button class="on">100円</button><button>500円</button><button>1000円</button>
+    </div>
+    <div class="seg"><button class="on">切り上げ</button><button>切り捨て</button></div>
+  </div>
+  <div class="result error">
+    <p>人数は2〜99の整数で入力してください</p>
+  </div>
+</div>
+
+</body>
+</html>
