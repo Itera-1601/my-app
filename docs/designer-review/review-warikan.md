@@ -1,14 +1,31 @@
 ---handoff---
 from: designer-review
-to: designer-ui
-type: feedback
-iteration: 1
-status: needs-discussion
-open_issues: must-1(部分入力時の状態定義)
+to: designer-ui, engineer-implement
+type: deliverable
+iteration: 2
+status: ready
+open_issues: none
 workspace: /Users/kuromametarou/WorkSpace/product/my-app
-inputs: docs/designer-ui/spec-warikan.md, docs/designer-ui/mockups/flow.mermaid, docs/designer-ui/mockups/warikan-main.html, docs/pm-requirements/requirements.md
+inputs: docs/designer-ui/spec-warikan.md (v2), docs/designer-ui/mockups/flow.mermaid, docs/designer-ui/mockups/warikan-main.html, docs/pm-requirements/requirements.md (v1.1)
 outputs: docs/designer-review/review-warikan.md
 ---
+
+# デザインレビュー: 割り勘計算機 v2 (iteration 2)
+
+## 判定: **承認**(must 0件)
+
+## 前回指摘の解消確認
+
+- [must-1] 部分入力時の状態 → **解消**。要件v1.1(REQ-004改訂)と整合する形で状態一覧に「いずれかが空→初期/未入力」と判定優先順位が明記され、フロー図にも空への遷移が追加された。正規の手順(要件への質問→改訂→反映)での解決である点も良い
+- [should-1] タッチターゲット44px → **解消**(仕様・モックとも)
+- [should-2] 選択状態のセマンティクス → **解消**(申し送りに checked / aria-pressed 明記)
+- [nit-1] プレースホルダ → **解消**(「例: 」形式)
+
+新規指摘なし(前回修正が生んだ問題は見当たらない)。v2 を確定仕様として engineer-implement に受け渡し可能。
+
+---
+
+# (履歴)デザインレビュー iteration 1
 
 # デザインレビュー: 割り勘計算機 v1 (iteration 1)
 
