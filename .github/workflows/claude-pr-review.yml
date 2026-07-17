@@ -151,6 +151,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # PRの作成者はclaude[bot]のため、reworkもbot actorとして許可が必要
+          allowed_bots: "claude"
           prompt: |
             engineer-implement ロールとして、このPRの最新レビューコメント
             (VERDICT: REQUEST_CHANGES を含むもの)の指摘を修正してください。
