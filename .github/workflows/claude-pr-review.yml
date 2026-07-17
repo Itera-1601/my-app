@@ -53,7 +53,7 @@ jobs:
 
             批評と判定のみを行い、コードの修正はしないこと。
           claude_args: |
-            --max-turns 30
+            --max-turns 50
             --allowedTools "Bash,Read,Glob,Grep"
 
   # ── autonomous モード専用: 判定に応じて自動マージ or 自動修正 ──
@@ -140,12 +140,16 @@ jobs:
       id-token: write
       contents: write
       pull-requests: write
-      issues: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+
+      - name: Record head SHA before rework
+        id: before
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Fix per review
         uses: anthropics/claude-code-action@v1
@@ -164,3 +168,23 @@ jobs:
           claude_args: |
             --max-turns 40
             --allowedTools "Bash,Edit,Write,Read,Glob,Grep"
+
+      # reworkが実際には何も修正しなかった場合(アクションのサイレントスキップ、
+      # push失敗等)、ジョブ成功のままループが静かに止まる。それを可視化して止める
+      - name: Detect silent stall (no fix pushed)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH"
+          after=$(git rev-parse "origin/$BRANCH")
+          if [ "$after" = "${{ steps.before.outputs.sha }}" ]; then
+            gh pr edit "$PR" --repo "$REPO" --add-label "needs-human"
+            gh pr comment "$PR" --repo "$REPO" --body \
+              "🚨 escalate-to-human: rework が修正をpushしないまま終了しました(ワークフロー版数不一致によるアクションのスキップ、またはpush失敗の可能性)。mainのワークフロー変更後は \`gh api -X PUT repos/$REPO/pulls/$PR/update-branch\` でブランチ更新が必要です。自動ループを停止したので人間の確認をお願いします。"
+            exit 1
+          fi
+          echo "Rework pushed: ${{ steps.before.outputs.sha }} -> $after"
