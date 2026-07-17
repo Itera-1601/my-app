@@ -9,6 +9,7 @@
 - `PROJECT_MODE` リポジトリ変数は削除済み(自動マージ・自動修正は無効)
 
 再開手順(この順で):
+0. リポジトリをパブリックに戻す: `gh repo edit Itera-1601/my-app --visibility public --accept-visibility-change-consequences`(2026-07-17にプライベート化済み。FreeプランのPagesはパブリック限定のため、#16のデプロイ前に必須。Pages設定の再有効化も確認: `gh api repos/Itera-1601/my-app/pages` が404なら `gh api -X POST repos/Itera-1601/my-app/pages -f build_type=workflow`)
 1. `gh variable set PROJECT_MODE --body autonomous --repo Itera-1601/my-app`
 2. `gh issue edit 16 --repo Itera-1601/my-app --remove-label in-progress`
 3. `gh workflow run "Claude Implement Next Task" --repo Itera-1601/my-app`
