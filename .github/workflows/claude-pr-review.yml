@@ -12,6 +12,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: read
       pull-requests: write
       issues: read
@@ -52,6 +53,7 @@ jobs:
     if: vars.PROJECT_MODE == 'autonomous'
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: write
       pull-requests: write
       issues: write
@@ -106,6 +108,7 @@ jobs:
     if: needs.autonomous-gate.outputs.action == 'rework'
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: write
       pull-requests: write
       issues: read
