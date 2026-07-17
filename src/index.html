@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>割り勘計算機</title>
+<style>
+  :root { box-sizing: border-box; }
+  * { box-sizing: inherit; }
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #f2f2f2;
+    color: #333;
+  }
+  .screen {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 16px;
+  }
+  h1 {
+    font-size: 16px;
+    margin: 0 0 16px;
+    color: #333;
+  }
+  .group { margin-bottom: 16px; }
+  .group-label { font-size: 12px; color: #666; margin-bottom: 6px; }
+  .fields { display: flex; gap: 8px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 120px; }
+  .field label { display: block; font-size: 12px; color: #444; margin-bottom: 4px; }
+  .field input {
+    width: 100%;
+    font-size: 18px;
+    padding: 10px;
+    border: 1px solid #bbb;
+    border-radius: 8px;
+    min-height: 44px;
+  }
+  .seg { display: flex; gap: 4px; }
+  .seg + .seg { margin-top: 4px; }
+  .seg-option { position: relative; flex: 1; }
+  .seg-option input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .seg-option label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    font-size: 13px;
+    border: 1px solid #bbb;
+    border-radius: 8px;
+    background: #f4f4f4;
+    text-align: center;
+    padding: 0 4px;
+  }
+  .seg-option input:checked + label {
+    background: #333;
+    color: #fff;
+    border-color: #333;
+  }
+  .seg-option input:focus-visible + label {
+    outline: 2px solid #333;
+    outline-offset: 2px;
+  }
+  .result {
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .result .per-label { font-size: 12px; color: #666; }
+  .result .per-amount { font-size: 40px; font-weight: 700; margin: 4px 0 12px; }
+  .result .sub {
+    font-size: 14px;
+    color: #444;
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+  }
+  .diff-plus { color: #1a7f37; }
+  .diff-minus { color: #c1121f; }
+  .diff-zero { color: #444; }
+  .result.empty {
+    border-style: dashed;
+    border-color: #aaa;
+    color: #888;
+    font-size: 14px;
+    padding: 28px 16px;
+  }
+  .result.empty p { margin: 0; }
+  .result.error {
+    border-color: #c1121f;
+    background: #fff5f5;
+    color: #c1121f;
+    font-size: 14px;
+    text-align: left;
+  }
+  .result.error p { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <h1>割り勘計算機</h1>
+
+  <div class="group">
+    <div class="fields">
+      <div class="field">
+        <label for="total">合計金額(円)</label>
+        <input type="text" inputmode="numeric" id="total" placeholder="例: 10000">
+      </div>
+      <div class="field">
+        <label for="people">人数(人)</label>
+        <input type="text" inputmode="numeric" id="people" placeholder="例: 3">
+      </div>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-label">端数の丸め</div>
+    <div class="seg">
+      <div class="seg-option">
+        <input type="radio" id="unit-1" name="unit" value="1">
+        <label for="unit-1">1円</label>
+      </div>
+      <div class="seg-option">
+        <input type="radio" id="unit-10" name="unit" value="10">
+        <label for="unit-10">10円</label>
+      </div>
+      <div class="seg-option">
+        <input type="radio" id="unit-100" name="unit" value="100" checked>
+        <label for="unit-100">100円</label>
+      </div>
+      <div class="seg-option">
+        <input type="radio" id="unit-500" name="unit" value="500">
+        <label for="unit-500">500円</label>
+      </div>
+      <div class="seg-option">
+        <input type="radio" id="unit-1000" name="unit" value="1000">
+        <label for="unit-1000">1000円</label>
+      </div>
+    </div>
+    <div class="seg">
+      <div class="seg-option">
+        <input type="radio" id="direction-ceil" name="direction" value="ceil" checked>
+        <label for="direction-ceil">切り上げ</label>
+      </div>
+      <div class="seg-option">
+        <input type="radio" id="direction-floor" name="direction" value="floor">
+        <label for="direction-floor">切り捨て</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="result empty" id="result">
+    <p>金額と人数を入れると結果が出ます</p>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
