@@ -90,8 +90,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr merge ${{ github.event.pull_request.number }} --squash --auto \
-            --repo ${{ github.repository }}
+          gh pr merge ${{ github.event.pull_request.number }} --squash --repo ${{ github.repository }} \
+            || gh pr merge ${{ github.event.pull_request.number }} --squash --auto --repo ${{ github.repository }}
           # マージ完了で claude-implement-next.yml が発火し、次タスクが自動開始される
 
       - name: Escalate to human (rework limit)
