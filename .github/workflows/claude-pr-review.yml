@@ -37,12 +37,19 @@ jobs:
             4. issueのスコープを超えた変更が混入していないか確認する(混入は指摘対象)
             5. バグ・エッジケース・セキュリティ・既存規約との不整合を指摘する
 
-            出力形式(PRコメントとして投稿):
+            出力形式:
             - レビュー観点チェック結果(観点ごとに ✅/❌ と根拠)
             - 指摘事項(重要度順、最大5件、些末なスタイル指摘は省く)
             - 賞賛は書かない。事実と根拠のみ。
             - **コメントの最終行は必ず次のどちらか一方だけにする(自動処理が読むため厳守):**
               `VERDICT: APPROVE` または `VERDICT: REQUEST_CHANGES`
+
+            投稿方法(厳守):
+            - レビュー本文を一時ファイルに書き、必ず Bash で
+              `gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file <ファイル>`
+              を実行してPRコメントとして投稿すること。
+            - 最終応答に本文を書くだけでは自動処理(autonomous-gate)がVERDICTを読めない。
+              コマンドの成功を確認してから終了すること。
 
             批評と判定のみを行い、コードの修正はしないこと。
           claude_args: |
@@ -59,6 +66,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      actions: write # マージ後の次タスク起動(gh workflow run)に必要
     outputs:
       action: ${{ steps.verdict.outputs.action }}
     steps:
@@ -70,9 +78,20 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          comments=$(gh api "repos/$REPO/issues/$PR/comments" --jq '[.[].body]')
-          verdict=$(echo "$comments" | jq -r '[.[] | select(contains("VERDICT:"))] | last // ""' | grep -o "VERDICT: [A-Z_]*" | tail -1 || echo "")
-          rework=$(echo "$comments" | jq '[.[] | select(contains("VERDICT: REQUEST_CHANGES"))] | length')
+          # VERDICTは issueコメント欄と PRレビュー欄のどちらにも投稿されうる。
+          # レビュー投稿がgate実行より遅れる場合に備え、30秒間隔で最大3回探す。
+          verdict=""
+          bodies="[]"
+          for attempt in 1 2 3; do
+            issue_bodies=$(gh api "repos/$REPO/issues/$PR/comments" --jq '[.[].body // ""]')
+            review_bodies=$(gh api "repos/$REPO/pulls/$PR/reviews" --jq '[.[].body // ""]')
+            bodies=$(printf '%s\n%s\n' "$issue_bodies" "$review_bodies" | jq -s 'add')
+            verdict=$(echo "$bodies" | jq -r '[.[] | select(contains("VERDICT:"))] | last // ""' | grep -o "VERDICT: [A-Z_]*" | tail -1 || echo "")
+            if [ -n "$verdict" ]; then break; fi
+            echo "No verdict found yet (attempt $attempt/3)."
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          rework=$(echo "$bodies" | jq '[.[] | select(contains("VERDICT: REQUEST_CHANGES"))] | length')
           echo "verdict=$verdict rework_count=$rework"
 
           if [ "$verdict" = "VERDICT: APPROVE" ]; then
@@ -92,7 +111,9 @@ jobs:
         run: |
           gh pr merge ${{ github.event.pull_request.number }} --squash --repo ${{ github.repository }} \
             || gh pr merge ${{ github.event.pull_request.number }} --squash --auto --repo ${{ github.repository }}
-          # マージ完了で claude-implement-next.yml が発火し、次タスクが自動開始される
+          # GITHUB_TOKENによるマージは pull_request(closed) イベントを発火させない
+          # (GitHubの再帰防止仕様)ため、次タスク開始を workflow_dispatch で明示的に起動する
+          gh workflow run "Claude Implement Next Task" --repo ${{ github.repository }}
 
       - name: Escalate to human (rework limit)
         if: steps.verdict.outputs.action == 'escalate'
