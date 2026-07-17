@@ -53,7 +53,7 @@ jobs:
 
             批評と判定のみを行い、コードの修正はしないこと。
           claude_args: |
-            --max-turns 30
+            --max-turns 50
             --allowedTools "Bash,Read,Glob,Grep"
 
   # ── autonomous モード専用: 判定に応じて自動マージ or 自動修正 ──
