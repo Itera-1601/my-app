@@ -111,6 +111,12 @@ jobs:
         run: |
           gh pr merge ${{ github.event.pull_request.number }} --squash --repo ${{ github.repository }} \
             || gh pr merge ${{ github.event.pull_request.number }} --squash --auto --repo ${{ github.repository }}
+          # Closes #N の自動closeはマージ直後に反映されない(または発生しない)ことがあり、
+          # 直後の次タスク選定が「in-progress issueあり」と誤認して止まる。明示的にcloseする
+          for n in $(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} \
+                       --json closingIssuesReferences --jq '.closingIssuesReferences[].number'); do
+            gh issue close "$n" --repo ${{ github.repository }} || true
+          done
           # GITHUB_TOKENによるマージは pull_request(closed) イベントを発火させない
           # (GitHubの再帰防止仕様)ため、次タスク開始を workflow_dispatch で明示的に起動する
           gh workflow run "Claude Implement Next Task" --repo ${{ github.repository }}
